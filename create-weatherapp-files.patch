@@ -1,12 +1,18 @@
-*** Begin Patch
-*** Add File: public/config.js
+diff --git a/public/config.js b/public/config.js
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/public/config.js
+@@ -0,0 +1,3 @@
 +window.__APP_CONFIG__ = {
 +  REACT_APP_OWM_API_KEY: "__REACT_APP_OWM_API_KEY__"
 +};
-+
-*** End Patch
-*** Begin Patch
-*** Add File: src/runtimeConfig.js
+diff --git a/src/runtimeConfig.js b/src/runtimeConfig.js
+new file mode 100644
+index 0000000..bb1280e
+--- /dev/null
++++ b/src/runtimeConfig.js
+@@ -0,0 +1,8 @@
 +export function getRuntimeConfig() {
 +  if (typeof window !== "undefined" && window.__APP_CONFIG__) {
 +    return window.__APP_CONFIG__;
@@ -15,354 +21,22 @@
 +    REACT_APP_OWM_API_KEY: process.env.REACT_APP_OWM_API_KEY || ""
 +  };
 +}
-+
-*** End Patch
-*** Begin Patch
-*** Add File: src/App.jsx
-+import React from "react";
-+import WeatherApp from "./WeatherApp";
-+
-+export default function App() {
-+  return (
-+    <div style={{ minHeight: "100vh", padding: 24, background: "#f1f5f9" }}>
-+      <WeatherApp />
-+    </div>
-+  );
-+}
-+
-*** End Patch
-*** Begin Patch
-*** Add File: src/WeatherApp.jsx
-+import React, { useState, useEffect } from "react";
-+import { getRuntimeConfig } from "./runtimeConfig";
-+
-+const API_KEY = getRuntimeConfig().REACT_APP_OWM_API_KEY;
-+
-+function formatTemp(kelvin) {
-+  if (kelvin == null) return "—";
-+  return `${Math.round(kelvin - 273.15)}°C`;
-+}
-+
-+function dayFromTimestamp(ts) {
-+  const d = new Date(ts * 1000);
-+  return d.toLocaleDateString(undefined, { weekday: "short" });
-+}
-+
-+export default function WeatherApp() {
-+  const [query, setQuery] = useState("");
-+  const [city, setCity] = useState(null);
-+  const [current, setCurrent] = useState(null);
-+  const [forecast, setForecast] = useState([]);
-+  const [loading, setLoading] = useState(false);
-+  const [error, setError] = useState("");
-+
-+  useEffect(() => {
-+    fetchByCity("London");
-+  }, []);
-+
-+  async function fetchByCity(name) {
-+    if (!name) return;
-+    setLoading(true);
-+    setError("");
-+    try {
-+      const currentRes = await fetch(
-+        `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(name)}&appid=${API_KEY}`
-+      );
-+      if (!currentRes.ok) throw new Error("City fetch failed");
-+      const currentJson = await currentRes.json();
-+      setCity({ name: `${currentJson.name}, ${currentJson.sys?.country || ""}` });
-+      setCurrent(currentJson);
-+
-+      const { coord } = currentJson;
-+      const forecastRes = await fetch(
-+        `https://api.openweathermap.org/data/2.5/forecast?lat=${coord.lat}&lon=${coord.lon}&appid=${API_KEY}`
-+      );
-+      if (!forecastRes.ok) throw new Error("Forecast fetch failed");
-+      const forecastJson = await forecastRes.json();
-+      setForecast(summarizeForecastToDaily(forecastJson.list));
-+    } catch (err) {
-+      console.error(err);
-+      setError(err.message || "Failed to fetch weather");
-+      setCity(null);
-+      setCurrent(null);
-+      setForecast([]);
-+    } finally {
-+      setLoading(false);
-+    }
-+  }
-+
-+  function summarizeForecastToDaily(list) {
-+    const days = {};
-+    list.forEach((item) => {
-+      const date = new Date(item.dt * 1000);
-+      const dayKey = date.toISOString().slice(0, 10);
-+      if (!days[dayKey]) days[dayKey] = [];
-+      days[dayKey].push(item);
-+    });
-+    return Object.keys(days)
-+      .slice(0, 5)
-+      .map((d) => {
-+        const items = days[d];
-+        let best = items[0];
-+        let bestDiff = Math.abs(new Date(best.dt * 1000).getHours() - 12);
-+        for (const it of items) {
-+          const diff = Math.abs(new Date(it.dt * 1000).getHours() - 12);
-+          if (diff < bestDiff) {
-+            best = it;
-+            bestDiff = diff;
-+          }
-+        }
-+        return best;
-+      });
-+  }
-+
-+  function handleSearch(e) {
-+    e.preventDefault();
-+    if (!query.trim()) return;
-+    fetchByCity(query.trim());
-+  }
-+
-+  return (
-+    <div style={{ maxWidth: 800, margin: "0 auto", padding: 18, background: "#fff", borderRadius: 12 }}>
-+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-+        <h1 style={{ margin: 0 }}>Weather App</h1>
-+      </header>
-+
-+      <form onSubmit={handleSearch} style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-+        <input
-+          style={{ flex: 1, padding: 8, borderRadius: 6, border: "1px solid #e2e8f0" }}
-+          placeholder="Enter city (e.g. Tokyo)"
-+          value={query}
-+          onChange={(e) => setQuery(e.target.value)}
-+        />
-+        <button style={{ padding: "8px 12px", borderRadius: 6, background: "#2563eb", color: "#fff", border: "none" }}>
-+          Search
-+        </button>
-+      </form>
-+
-+      {loading && <div>Loading…</div>}
-+      {error && <div style={{ color: "crimson" }}>Error: {error}</div>}
-+
-+      {current && (
-+        <section style={{ marginBottom: 12 }}>
-+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-+            <img
-+              alt={current.weather?.[0]?.description || "weather"}
-+              src={`https://openweathermap.org/img/wn/${current.weather?.[0]?.icon}@2x.png`}
-+              width={80}
-+              height={80}
-+            />
-+            <div>
-+              <div style={{ fontSize: 20, fontWeight: 600 }}>{city?.name}</div>
-+              <div style={{ fontSize: 28, marginTop: 6 }}>{formatTemp(current.main?.temp)}</div>
-+            </div>
-+          </div>
-+        </section>
-+      )}
-+
-+      {forecast.length > 0 && (
-+        <section>
-+          <h2 style={{ margin: "8px 0" }}>5-day forecast</h2>
-+          <div style={{ display: "flex", gap: 8 }}>
-+            {forecast.map((f) => (
-+              <div key={f.dt} style={{ flex: 1, padding: 8, borderRadius: 8, background: "#f8fafc", textAlign: "center" }}>
-+                <div style={{ fontSize: 12 }}>{dayFromTimestamp(f.dt)}</div>
-+                <img
-+                  alt={f.weather?.[0]?.description}
-+                  src={`https://openweathermap.org/img/wn/${f.weather?.[0]?.icon}.png`}
-+                  width={48}
-+                  height={48}
-+                  style={{ margin: "6px auto" }}
-+                />
-+                <div style={{ fontSize: 14 }}>{formatTemp(f.main?.temp)}</div>
-+              </div>
-+            ))}
-+          </div>
-+        </section>
-+      )}
-+    </div>
-+  );
-+}
-+
-*** End Patch
-*** Begin Patch
-*** Add File: Dockerfile
-+# Stage 1: build
-+FROM node:18-alpine AS build
-+WORKDIR /app
-+COPY package*.json ./
-+RUN npm ci --silent
-+COPY . .
-+ARG REACT_APP_OWM_API_KEY
-+ENV REACT_APP_OWM_API_KEY=${REACT_APP_OWM_API_KEY}
-+RUN npm run build
-+
-+# Stage 2: runtime
-+FROM nginx:stable-alpine AS runtime
-+LABEL org.opencontainers.image.title="weather-app"
-+COPY --from=build /app/build /usr/share/nginx/html
-+COPY nginx.conf /etc/nginx/conf.d/default.conf
-+COPY docker-entrypoint.sh /docker-entrypoint.sh
-+RUN chmod +x /docker-entrypoint.sh
-+EXPOSE 80
-+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-+  CMD wget --quiet --tries=1 --spider http://127.0.0.1/ || exit 1
-+ENTRYPOINT ["/docker-entrypoint.sh"]
-+CMD ["nginx", "-g", "daemon off;"]
-+
-*** End Patch
-*** Begin Patch
-*** Add File: nginx.conf
-+server {
-+    listen 80;
-+    server_name _;
-+
-+    root /usr/share/nginx/html;
-+    index index.html;
-+
-+    add_header X-Content-Type-Options nosniff;
-+    add_header X-Frame-Options DENY;
-+
-+    location / {
-+        try_files $uri $uri/ /index.html;
-+    }
-+
-+    location = /index.html {
-+        add_header Cache-Control "no-cache, must-revalidate";
-+    }
-+    location ~* \.(?:css|js|svg|png|jpg|jpeg|gif|ico)$ {
-+        add_header Cache-Control "public, max-age=31536000, immutable";
-+    }
-+}
-+
-*** End Patch
-*** Begin Patch
-*** Add File: docker-entrypoint.sh
+diff --git a/docker-entrypoint.sh b/docker-entrypoint.sh
+new file mode 100755
+index 0000000..1c2ba67
+--- /dev/null
++++ b/docker-entrypoint.sh
+@@ -0,0 +1,13 @@
 +#!/bin/sh
 +set -e
++
 +WEB_ROOT=/usr/share/nginx/html
 +CONFIG_FILE="${WEB_ROOT}/config.js"
++
 +if [ -f "$CONFIG_FILE" ]; then
 +  : "${REACT_APP_OWM_API_KEY:=}"
 +  sed -i "s|__REACT_APP_OWM_API_KEY__|${REACT_APP_OWM_API_KEY}|g" "$CONFIG_FILE"
 +fi
++
 +exec "$@"
 +
-*** End Patch
-*** Begin Patch
-*** Add File: .dockerignore
-+node_modules
-+build
-+.dockerignore
-+.git
-+.gitignore
-+.vscode
-+.env
-+npm-debug.log
-+Dockerfile*
-+README.md
-+
-*** End Patch
-*** Begin Patch
-*** Add File: docker-compose.yml
-+version: "3.8"
-+services:
-+  web:
-+    image: node:18-alpine
-+    working_dir: /app
-+    volumes:
-+      - ./:/app:cached
-+      - /app/node_modules
-+    command: sh -c "npm ci && npm start"
-+    ports:
-+      - "3000:3000"
-+    environment:
-+      - CHOKIDAR_USEPOLLING=true
-+
-*** End Patch
-*** Begin Patch
-*** Add File: docker-compose.prod.yml
-+version: "3.8"
-+services:
-+  web:
-+    image: yourdockerhubuser/weather-app:latest
-+    ports:
-+      - "8080:80"
-+    restart: always
-+
-*** End Patch
-*** Begin Patch
-*** Add File: .github/workflows/ci-build-push.yml
-+name: Build, Scan, Push
-+
-+on:
-+  push:
-+    branches:
-+      - main
-+      - dev
-+  pull_request:
-+    branches:
-+      - dev
-+      - main
-+
-+env:
-+  IMAGE_NAME: yourdockerhubuser/weather-app
-+
-+jobs:
-+  build-and-scan:
-+    runs-on: ubuntu-latest
-+
-+    steps:
-+      - name: Checkout
-+        uses: actions/checkout@v4
-+
-+      - name: Set up QEMU
-+        uses: docker/setup-qemu-action@v2
-+
-+      - name: Set up Docker Buildx
-+        uses: docker/setup-buildx-action@v2
-+
-+      - name: Login to DockerHub
-+        uses: docker/login-action@v2
-+        with:
-+          username: ${{ secrets.DOCKERHUB_USERNAME }}
-+          password: ${{ secrets.DOCKERHUB_TOKEN }}
-+
-+      - name: Build and push image
-+        uses: docker/build-push-action@v4
-+        with:
-+          context: .
-+          push: true
-+          tags: |
-+            ${{ env.IMAGE_NAME }}:latest
-+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
-+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:latest
-+          cache-to: type=inline
-+          build-args: REACT_APP_OWM_API_KEY=${{ secrets.DUMMY }}
-+
-+      - name: Scan pushed image with Trivy
-+        uses: aquasecurity/trivy-action@v1
-+        with:
-+          image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
-+          format: 'table'
-+          exit-code: '1'
-+          ignore-unfixed: true
-+
-*** End Patch
-*** Begin Patch
-*** Add File: README.md
-+# Weather App - DevOps Training
-+
-+This repository contains a simple React-based weather app plus Docker and CI configuration for DevOps training.
-+
-+Key points:
-+- `public/config.js` — runtime config placeholder.
-+- `src/runtimeConfig.js` — reads runtime config or falls back to build-time env.
-+- `Dockerfile` — multi-stage build (node build → nginx runtime).
-+- `docker-entrypoint.sh` — injects runtime env into `config.js`.
-+- `.github/workflows/ci-build-push.yml` — CI pipeline that builds, scans, tags, and pushes images.
-+
-+Follow the training guide to build, run, and deploy.
-+
-*** End Patch
-*** End Patch
