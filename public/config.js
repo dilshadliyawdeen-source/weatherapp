@@ -1,3 +1,4 @@
 window.__APP_CONFIG__ = {
-  REACT_APP_OWM_API_KEY: "__REACT_APP_OWM_API_KEY__"
+  REACT_APP_OWM_API_KEY: "__REACT_APP_OWM_API_KEY__",
+  APP_NAME: "Weather Vite TS"
 };
